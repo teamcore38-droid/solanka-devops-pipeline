@@ -1,12 +1,14 @@
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
-from typing import List, Optional
 from datetime import datetime
 import os
 
 app = FastAPI(
     title="Solanka Digital Tourism API",
-    description="Core backend service for Solanka Digital Tourism (Pvt) Ltd. Built to adhere to ISO 9001 (QMS) and ISO/IEC 27001 (ISMS) standards.",
+    description=(
+        "Core backend service for Solanka Digital Tourism (Pvt) Ltd. "
+        "Adheres to ISO 9001 (QMS) and ISO/IEC 27001 (ISMS) standards."
+    ),
     version="1.0.0"
 )
 
@@ -56,6 +58,7 @@ DESTINATIONS_DB = [
 
 BOOKINGS_DB = []
 
+
 # Schemas
 class BookingRequest(BaseModel):
     customer_name: str = Field(..., min_length=2, max_length=100)
@@ -63,6 +66,7 @@ class BookingRequest(BaseModel):
     destination_id: int
     num_passengers: int = Field(..., ge=1, le=20)
     travel_date: str = Field(..., description="Format: YYYY-MM-DD")
+
 
 class BookingResponse(BaseModel):
     booking_id: str
@@ -73,6 +77,7 @@ class BookingResponse(BaseModel):
     travel_date: str
     status: str
     created_at: str
+
 
 @app.get("/", tags=["General"])
 def read_root():
@@ -86,6 +91,7 @@ def read_root():
         "status": "OPERATIONAL"
     }
 
+
 @app.get("/health", tags=["Monitoring"])
 def health_check():
     """Health check endpoint used by Jenkins, Docker, and Ansible for deployment validation."""
@@ -96,6 +102,7 @@ def health_check():
         "version": "1.0.0"
     }
 
+
 @app.get("/api/v1/destinations", tags=["Destinations"])
 def list_destinations():
     """Retrieve catalog of available Sri Lankan tourist packages."""
@@ -103,6 +110,7 @@ def list_destinations():
         "total": len(DESTINATIONS_DB),
         "destinations": DESTINATIONS_DB
     }
+
 
 @app.get("/api/v1/destinations/{dest_id}", tags=["Destinations"])
 def get_destination(dest_id: int):
@@ -112,16 +120,17 @@ def get_destination(dest_id: int):
             return item
     raise HTTPException(status_code=404, detail="Destination not found")
 
+
 @app.post("/api/v1/bookings", response_model=BookingResponse, status_code=status.HTTP_201_CREATED, tags=["Bookings"])
 def create_booking(booking: BookingRequest):
     """Create a new booking for a traveler."""
     destination = next((d for d in DESTINATIONS_DB if d["id"] == booking.destination_id), None)
     if not destination:
         raise HTTPException(status_code=400, detail="Invalid destination ID")
-    
+
     total_cost = destination["price_usd"] * booking.num_passengers
     booking_id = f"SLK-{len(BOOKINGS_DB) + 1001}"
-    
+
     record = {
         "booking_id": booking_id,
         "customer_name": booking.customer_name,
@@ -135,6 +144,7 @@ def create_booking(booking: BookingRequest):
     }
     BOOKINGS_DB.append(record)
     return record
+
 
 @app.get("/api/v1/bookings", tags=["Bookings"])
 def list_bookings():

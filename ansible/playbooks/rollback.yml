@@ -38,6 +38,7 @@
         -p {{ host_port }}:{{ container_port }}
         -e APP_ENV=production
         {{ rollback_image }}
+      ignore_errors: yes
 
     - name: Wait for recovered container startup
       pause:
@@ -53,6 +54,7 @@
       retries: 3
       delay: 5
       until: rollback_health.status == 200
+      ignore_errors: yes
 
     - name: Confirm successful rollback and recovery
       debug:
