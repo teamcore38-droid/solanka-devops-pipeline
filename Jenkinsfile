@@ -89,17 +89,13 @@ pipeline {
         stage('7. Ansible Automated Deployment') {
             steps {
                 echo '=== Stage 7: Deploying to AWS Production Host via Ansible ==='
-                withCredentials([sshUserPrivateKey(credentialsId: "${SSH_KEY_CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                    sh """
-                        chmod 400 \$SSH_KEY
-                        echo "Ensuring container image is deployed to AWS production host..."
-                        docker save ${DOCKER_IMAGE_NAME}:${IMAGE_TAG} | ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@${TARGET_SERVER_IP} "docker load" || true
-                        ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yml \
-                            --private-key=\$SSH_KEY \
-                            -u \$SSH_USER \
-                            --extra-vars "docker_image=${DOCKER_IMAGE_NAME}:${IMAGE_TAG} target_host=${TARGET_SERVER_IP}"
-                    """
-                }
+                sh """
+                    echo "Ensuring container image is deployed to AWS production host..."
+                    docker save ${DOCKER_IMAGE_NAME}:${IMAGE_TAG} | ssh -o StrictHostKeyChecking=no ubuntu@${TARGET_SERVER_IP} "docker load" || true
+                    ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yml \
+                        -u ubuntu \
+                        --extra-vars "docker_image=${DOCKER_IMAGE_NAME}:${IMAGE_TAG} target_host=${TARGET_SERVER_IP}"
+                """
             }
         }
 
@@ -121,15 +117,11 @@ pipeline {
         failure {
             echo "ALERT: Pipeline failed or health verification did not succeed!"
             echo "Triggering automated rollback playbook to preserve ISO 20000 / 22301 SLA targets..."
-            withCredentials([sshUserPrivateKey(credentialsId: "${SSH_KEY_CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                sh """
-                    chmod 400 \$SSH_KEY
-                    ansible-playbook -i ansible/inventory.ini ansible/playbooks/rollback.yml \
-                        --private-key=\$SSH_KEY \
-                        -u \$SSH_USER \
-                        --extra-vars "target_host=${TARGET_SERVER_IP}" || true
-                """
-            }
+            sh """
+                ansible-playbook -i ansible/inventory.ini ansible/playbooks/rollback.yml \
+                    -u ubuntu \
+                    --extra-vars "target_host=${TARGET_SERVER_IP}" || true
+            """
         }
     }
 }
