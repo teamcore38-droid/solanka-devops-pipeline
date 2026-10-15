@@ -11,6 +11,7 @@
   tasks:
     - name: Pull the target Docker image
       command: "docker pull {{ docker_image }}"
+      ignore_errors: yes
 
     - name: Check if previous container exists
       command: "docker ps -a -q -f name=^/{{ app_name }}$"

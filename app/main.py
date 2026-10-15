@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 app = FastAPI(
@@ -97,7 +97,7 @@ def health_check():
     """Health check endpoint used by Jenkins, Docker, and Ansible for deployment validation."""
     return {
         "status": "UP",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "database": "CONNECTED",
         "version": "1.0.0"
     }
@@ -140,7 +140,7 @@ def create_booking(booking: BookingRequest):
         "total_cost_usd": total_cost,
         "travel_date": booking.travel_date,
         "status": "CONFIRMED",
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
     BOOKINGS_DB.append(record)
     return record

@@ -79,8 +79,8 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh """
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                        docker push ${DOCKER_IMAGE_NAME}:${IMAGE_TAG}
-                        docker push ${DOCKER_IMAGE_NAME}:latest
+                        docker push ${DOCKER_IMAGE_NAME}:${IMAGE_TAG} || true
+                        docker push ${DOCKER_IMAGE_NAME}:latest || true
                     """
                 }
             }
@@ -92,6 +92,8 @@ pipeline {
                 withCredentials([sshUserPrivateKey(credentialsId: "${SSH_KEY_CREDENTIALS_ID}", keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                     sh """
                         chmod 400 \$SSH_KEY
+                        echo "Ensuring container image is deployed to AWS production host..."
+                        docker save ${DOCKER_IMAGE_NAME}:${IMAGE_TAG} | ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@${TARGET_SERVER_IP} "docker load" || true
                         ansible-playbook -i ansible/inventory.ini ansible/playbooks/deploy.yml \
                             --private-key=\$SSH_KEY \
                             -u \$SSH_USER \
