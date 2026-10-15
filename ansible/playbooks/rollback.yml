@@ -4,7 +4,7 @@
   become: true
   vars:
     app_name: solanka-tourism-api
-    default_rollback_image: "solankatourism/tourism-api:latest"
+    default_rollback_image: "solanka123/tourism-api:latest"
     container_port: 8000
     host_port: 8000
 

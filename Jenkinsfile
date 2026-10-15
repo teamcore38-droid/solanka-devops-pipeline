@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_HUB_CREDENTIALS_ID = 'dockerhub-credentials'
-        DOCKER_IMAGE_NAME         = 'solankatourism/tourism-api'
+        DOCKER_IMAGE_NAME         = 'solanka123/tourism-api'
         IMAGE_TAG                 = "${env.BUILD_NUMBER}"
         TARGET_SERVER_IP          = credentials('solanka-prod-server-ip')
         SSH_KEY_CREDENTIALS_ID    = 'aws-ec2-ssh-key'
