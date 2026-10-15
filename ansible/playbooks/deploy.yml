@@ -1,0 +1,60 @@
+---
+- name: Deploy Solanka Digital Tourism Application Container
+  hosts: solanka_production
+  become: true
+  vars:
+    app_name: solanka-tourism-api
+    docker_image: "{{ docker_image | default('solankatourism/tourism-api:latest') }}"
+    container_port: 8000
+    host_port: 8000
+
+  tasks:
+    - name: Pull the target Docker image
+      command: "docker pull {{ docker_image }}"
+
+    - name: Check if previous container exists
+      command: "docker ps -a -q -f name=^/{{ app_name }}$"
+      register: existing_container
+      changed_when: false
+
+    - name: Record currently running image ID as rollback reference (ISO 9001 Release Control)
+      shell: "docker inspect --format='{{ '{{' }} .Config.Image {{ '}}' }}' {{ app_name }} > /tmp/solanka_previous_stable_image.txt || true"
+      when: existing_container.stdout != ""
+
+    - name: Stop running container if present
+      command: "docker stop {{ app_name }}"
+      when: existing_container.stdout != ""
+      ignore_errors: yes
+
+    - name: Remove stopped container if present
+      command: "docker rm {{ app_name }}"
+      when: existing_container.stdout != ""
+      ignore_errors: yes
+
+    - name: Run updated Solanka Tourism API container
+      command: >
+        docker run -d
+        --name {{ app_name }}
+        --restart unless-stopped
+        -p {{ host_port }}:{{ container_port }}
+        -e APP_ENV=production
+        {{ docker_image }}
+
+    - name: Wait 10 seconds for container startup and service initialization
+      pause:
+        seconds: 10
+
+    - name: Verify application health via local endpoint
+      uri:
+        url: "http://localhost:{{ host_port }}/health"
+        method: GET
+        status_code: 200
+        return_content: yes
+      register: health_response
+      retries: 5
+      delay: 5
+      until: health_response.status == 200 and '"status":"UP"' in health_response.content
+
+    - name: Output deployment confirmation
+      debug:
+        msg: "Deployment of {{ docker_image }} on {{ inventory_hostname }} was SUCCESSFUL. Health status: {{ health_response.json.status }}"

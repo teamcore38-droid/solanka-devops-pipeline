@@ -1,0 +1,59 @@
+---
+- name: Automated Rollback for Solanka Digital Tourism Application
+  hosts: solanka_production
+  become: true
+  vars:
+    app_name: solanka-tourism-api
+    default_rollback_image: "solankatourism/tourism-api:latest"
+    container_port: 8000
+    host_port: 8000
+
+  tasks:
+    - name: Read previous stable image reference from host
+      shell: "cat /tmp/solanka_previous_stable_image.txt"
+      register: previous_image_file
+      ignore_errors: yes
+
+    - name: Set target rollback image variable
+      set_fact:
+        rollback_image: "{{ previous_image_file.stdout if (previous_image_file.stdout is defined and previous_image_file.stdout != '') else default_rollback_image }}"
+
+    - name: Log rollback initiation (ISO 9001 / ISO 20000 Corrective Action Record)
+      debug:
+        msg: "CRITICAL: Rolling back {{ app_name }} to previous stable image: {{ rollback_image }}"
+
+    - name: Stop failed container
+      command: "docker stop {{ app_name }}"
+      ignore_errors: yes
+
+    - name: Remove failed container
+      command: "docker rm {{ app_name }}"
+      ignore_errors: yes
+
+    - name: Relaunch previous stable container
+      command: >
+        docker run -d
+        --name {{ app_name }}
+        --restart unless-stopped
+        -p {{ host_port }}:{{ container_port }}
+        -e APP_ENV=production
+        {{ rollback_image }}
+
+    - name: Wait for recovered container startup
+      pause:
+        seconds: 10
+
+    - name: Validate health of rolled back container
+      uri:
+        url: "http://localhost:{{ host_port }}/health"
+        method: GET
+        status_code: 200
+        return_content: yes
+      register: rollback_health
+      retries: 3
+      delay: 5
+      until: rollback_health.status == 200
+
+    - name: Confirm successful rollback and recovery
+      debug:
+        msg: "RECOVERY COMPLETE: Service successfully restored on {{ inventory_hostname }} using {{ rollback_image }}."
